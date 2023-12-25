@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { MyContextProvider } from "../Components/MyContext";
 import axios from "axios";
 import Swal from "sweetalert2";
@@ -8,6 +8,8 @@ import deleteIcon from './../assets/delete.png'
 const Dashboard = () => {
     const {user}=useContext(MyContextProvider)
     const userEmail = user.email
+    const [editAbleObj, setEditableObj] = useState({})
+    const [editId, setEditId]= useState(null)
     const handleSubmit =(e)=>{
     e.preventDefault()
     const form = e.target;
@@ -19,7 +21,7 @@ const Dashboard = () => {
     const tasks ={
         title, desc, date, userEmail
     }
-    // console.log(tasks);
+   
     form.reset()
 
     axios.post("http://localhost:5000/task", tasks).then((res) => {
@@ -49,11 +51,14 @@ const { data:tasks, refetch } = useQuery({
 
   const handleEdit=(id)=>{
       console.log(id);
-      const editableObj = tasks.find(task =>task._id ==id)
-      console.log(editableObj);
+      setEditId(id)
+      const targetedObj = tasks.find(task =>task._id ==id)
+      setEditableObj(targetedObj)
 
   }
 
+  
+ 
   const handleDelete = (_id)=>{
     console.log(_id);
     axios.delete(`http://localhost:5000/task/${_id}`)
@@ -72,14 +77,48 @@ const { data:tasks, refetch } = useQuery({
     });
   }
   
+const handleUpdate =(e)=>{
+  e.preventDefault();
+    const form = e.target;
+    const title = form.title.value;
+    const desc = form.description.value;
+    const date = form.date.value;
+    
+    const updatedTask ={
+        title, desc, date
+    }
+    
+    form.reset()
+    setEditId(null)
+
+    axios.patch(`http://localhost:5000/task/${editId}`, updatedTask)
+    .then((res) => {
+      console.log(res.data);
+      if (res.data.modifiedCount) {
+        Swal.fire({
+          position: "top-end",
+          icon: "success",
+          title: "task updated   successfully",
+          showConfirmButton: false,
+          timer: 1500,
+        });
+        refetch()
+      }
+      refetch()
+    })
+}
+
+
   return (
     <div className="min-h-screen">
       <div className="max-w-7xl mx-auto px-10">
-        <form onSubmit={handleSubmit}>
+        {
+          !editId? <>
+          <form onSubmit={handleSubmit}>
           <fieldset className="bg-cyan-400 p-6 w-2/3 mx-auto">
             <legend className="bg-blue-400 px-6 py-1 mx-auto">Add Task</legend>
             <div className="flex flex-col justify-center items-center">
-              <input className="block w-3/4 mb-4" type="text" name="title" placeholder="Title here" />
+              <input className="block w-3/4 mb-4" type="text" name="title" placeholder="Title here" defaultValue={'Title here'} />
               <textarea
                 className="w-3/4"
                 name="description"
@@ -87,23 +126,45 @@ const { data:tasks, refetch } = useQuery({
                 cols="30"
                 rows="3"
                 placeholder="describe here"
+                defaultValue={'Title here'}
               ></textarea>
               <div className="flex gap-6 mt-6">
-                {/* <label className="text-lg text-white block">Choose Status:</label>
-
-                <select className="block" name="status" id="cars">
-                  <option value="Todo">Todo</option>
-                  <option value="ongoing">Ongoing</option>
-                  <option value="finished">Finished</option>
-                </select> */}
+              
                 <label className="text-lg text-white ">Choose Date:</label>
-                <input className="block" type="date" name="date" />
+                <input className="block" type="date" name="date" defaultValue={''}/>
               </div>
             </div>
             <button type="submit" className="bg-red-400 px-6 py-2 block mt-6 mx-auto">Add</button>
           </fieldset>
-          
         </form>
+          </> : <>
+          <form onSubmit={handleUpdate}>
+          <fieldset className="bg-yellow-500 p-6 w-2/3 mx-auto">
+            <legend className="bg-blue-400 px-6 py-1 mx-auto">Add Task</legend>
+            <div className="flex flex-col justify-center items-center">
+              <input className="block w-3/4 mb-4" type="text" name="title" placeholder="Title here" defaultValue={editAbleObj.title} />
+              <textarea
+                className="w-3/4"
+                name="description"
+                id=""
+                cols="30"
+                rows="3"
+                
+                defaultValue={editAbleObj.desc}
+                placeholder="describe here"
+              ></textarea>
+              <div className="flex gap-6 mt-6">
+                <label className="text-lg text-white ">Choose Date:</label>
+                <input className="block" type="date" name="date" defaultValue={editAbleObj.date} />
+              </div>
+            </div>
+            <button type="submit" className="bg-red-400 px-6 py-2 block mt-6 mx-auto">Update</button>
+          </fieldset>
+        </form>
+          </>
+        }
+
+        {/* to do list item  */}
         <div className="grid grid-cols-3 gap-6">
             <div>
                 <div className="bg-blue-400 px-4 py-2 mt-16 mb-8">
@@ -113,7 +174,7 @@ const { data:tasks, refetch } = useQuery({
                 <div key={task._id} className="mb-5 bg-purple-400 px-4 py-2">
                 <div className="flex justify-between items-center">
                   <h3 className="text-white text-xl p font-medium my-4" >{task?.title}</h3>
-                  <div>
+                  <div className="flex">
                   <button onClick={()=>handleEdit(task._id)}><img className="w-8 h-8" src="https://i.ibb.co/GkHfMr6/8666681-edit-icon.png" alt="" /></button>
                   <button onClick={()=>handleDelete(task._id)}><img className="w-8 h-8" src={deleteIcon} alt="" /></button>
                   </div>
@@ -124,18 +185,8 @@ const { data:tasks, refetch } = useQuery({
                 ))}
             </div>
            
-            </div>
-      </div>
-      <button className="btn" onClick={()=>document.getElementById('my_modal_2').showModal()}>open modal</button>
-      <dialog id="my_modal_2" className="modal">
-        <div className="modal-box">
-          <h3 className="font-bold text-lg">Hello!</h3>
-          <p className="py-4">Press ESC key or click outside to close</p>
         </div>
-        <form method="dialog" className="modal-backdrop">
-          <button>close</button>
-        </form>
-      </dialog>
+      </div>
     </div>
   );
 };
